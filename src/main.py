@@ -57,8 +57,19 @@ def tensorflow_h5_handler(model_location: str, payload: Any) -> Any:
         print(err)
         return {"success": False, "error": str(err)}
     finally:
+        # remove model
         os.remove(FILEPATH)
-        shutil.rmtree(f"{TMP}/__")
+        # remove __pycache
+        try:
+            shutil.rmtree(f"{TMP}/__pycache__")
+        except:
+            pass
+        # remove all other files
+        for f in os.listdir(TMP):
+            try:
+                os.remove(f)
+            except:
+                pass
 
     return output
 
@@ -73,11 +84,11 @@ def handler(event, context) -> dict:
     payload = event["payload"]
     model_location = event["model"]
     model_type = event["model_type"]
-    persistent_type = event["persistent_type"]
+    persistence_type = event["persistence_type"]
 
-    if model_type == "tensorflow" and persistent_type == "h5":
+    if model_type == "tensorflow" and persistence_type == "h5":
         output = tensorflow_h5_handler(model_location=model_location, payload=payload)
-    elif model_type == "sckit-learn" and persistent_type == "pickle":
+    elif model_type == "sckit-learn" and persistence_type == "pickle":
         pass
 
     # Format result
