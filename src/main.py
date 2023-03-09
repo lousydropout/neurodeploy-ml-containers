@@ -37,7 +37,7 @@ def handler(event, context) -> dict:
 
     # Get input/payload
     payload = event["payload"]
-    x_input = np.array([payload])
+    x_input = np.array(payload)
     print("x_input: ", x_input)
 
     # Get model
@@ -46,7 +46,9 @@ def handler(event, context) -> dict:
 
     # Run model
     try:
-        res = model.predict(x_input).tolist()
+        res = model.predict(x_input)
+        print("Res: ", res)
+        output = res.tolist()
     except Exception as err:
         print(err)
         raise err
@@ -54,7 +56,7 @@ def handler(event, context) -> dict:
         os.remove(FILEPATH)
 
     # Format result
-    result = {"output": res, "image_hash": BASE_IMAGE}
+    result = {"output": output, "image_hash": BASE_IMAGE}
 
     print("listdir: ", os.listdir())
     print("Result: ", json.dumps(result))
