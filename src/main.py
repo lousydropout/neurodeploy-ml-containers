@@ -10,39 +10,93 @@ BASE_IMAGE = os.environ["base_image"]
 BUCKET_NAME = os.environ["bucket"]
 REGION_NAME = os.environ["region_name"]
 TMP = "/tmp"
-FILEPATH = "/tmp/tmp.h5"
+FILEPATH_h5 = "/tmp/tmp.h5"
+FILEPATH_joblib = "/tmp/tmp.joblib"
+FILEPATH_pickle = "/tmp/tmp.pickle"
+
+H5 = "h5"
+JOBLIB = "joblib"
+PICKLE = "pickle"
+
+SCIKIT_LEARN = "scikit-learn"
+TENSORFLOW = "tensorflow"
 
 s3_client = boto3.client("s3")
 s3 = boto3.resource("s3")
 bucket = s3.Bucket(BUCKET_NAME)
 
 
-def get_model(model_location: str) -> str:
+def get_model_h5(model_location: str) -> str:
     model_obj = bucket.Object(model_location)
     try:
         model_file = model_obj.get()["Body"].read()
     except s3_client.exceptions.NoSuchKey as err:
         print(err)
 
-    with open(FILEPATH, "bw") as f:
+    with open(FILEPATH_h5, "bw") as f:
         f.write(model_file)
 
     try:
-        model = tf.keras.models.load_model(filepath=FILEPATH)
+        model = tf.keras.models.load_model(filepath=FILEPATH_h5)
     except Exception as err:
         print(err)
-        os.remove(FILEPATH)
+        os.remove(FILEPATH_h5)
         raise Exception("Failed to load model")
 
     return model
 
 
-def tensorflow_h5_handler(model_location: str, payload: Any) -> Any:
+def get_model_joblib(model_location: str) -> str:
+    model_obj = bucket.Object(model_location)
+    try:
+        model_file = model_obj.get()["Body"].read()
+    except s3_client.exceptions.NoSuchKey as err:
+        print(err)
+
+    with open(FILEPATH_joblib, "bw") as f:
+        f.write(model_file)
+
+    try:
+        import joblib
+        model = joblib.load(FILEPATH_joblib)
+    except Exception as err:
+        print(err)
+        os.remove(FILEPATH_joblib)
+        raise Exception("Failed to load model")
+
+    return model
+
+
+def get_model_pickle(model_location: str) -> str:
+    model_obj = bucket.Object(model_location)
+    try:
+        model_file = model_obj.get()["Body"].read()
+    except s3_client.exceptions.NoSuchKey as err:
+        print(err)
+
+    with open(FILEPATH_pickle, "bw") as f:
+        f.write(model_file)
+
+    try:
+        import pickle
+        model = pickle.loads(FILEPATH_pickle)
+    except Exception as err:
+        print(err)
+        os.remove(FILEPATH_pickle)
+        raise Exception("Failed to load model")
+
+    return model
+
+
+def tensorflow_handler(model_location: str, persistence_type: str, payload: Any) -> Any:
     x_input = np.array(payload)
     print("x_input: ", x_input)
 
     # Get model
-    model = get_model(model_location=model_location)
+    if persistence_type == H5:
+        model = get_model_h5(model_location=model_location)
+    elif persistence_type == JOBLIB:
+        model = get_model_joblib(model_location=model_location)
     print("Model summary: ", model.summary())
 
     # Run model
@@ -56,20 +110,39 @@ def tensorflow_h5_handler(model_location: str, payload: Any) -> Any:
     except Exception as err:
         print(err)
         return {"success": False, "error": str(err)}
-    finally:
-        # remove model
-        os.remove(FILEPATH)
-        # remove __pycache
-        try:
-            shutil.rmtree(f"{TMP}/__pycache__")
-        except:
-            pass
-        # remove all other files
-        for f in os.listdir(TMP):
-            try:
-                os.remove(f)
-            except:
-                pass
+    # TODO Fix this
+    # finally:
+    #     os.remove(FILEPATH)
+    #     shutil.rmtree(f"{TMP}/__")
+
+    return output
+
+
+def scikit_learn_handler(model_location: str, persistence_type: str, payload: Any) -> Any:
+    x_input = np.array(payload)
+    print("x_input: ", x_input)
+
+    # Get model
+    if persistence_type == H5:
+        model = get_model_h5(model_location=model_location)
+    elif persistence_type == JOBLIB:
+        model = get_model_joblib(model_location=model_location)
+    # print("Model summary: ", model.summary())
+
+    # Run model
+    try:
+        res = model.predict(x_input)
+        print("Res: ", res)
+        output = res.tolist()
+    except ValueError as err:
+        print(err)
+        return {"success": False, "error": str(err), "input": payload}
+    except Exception as err:
+        print(err)
+        return {"success": False, "error": str(err)}
+    # finally:
+    #     os.remove(FILEPATH)
+    #     shutil.rmtree(f"{TMP}/__")
 
     return output
 
@@ -86,9 +159,11 @@ def handler(event, context) -> dict:
     model_type = event["model_type"]
     persistence_type = event["persistence_type"]
 
-    if model_type == "tensorflow" and persistence_type == "h5":
-        output = tensorflow_h5_handler(model_location=model_location, payload=payload)
-    elif model_type == "sckit-learn" and persistence_type == "pickle":
+    if model_type == TENSORFLOW:
+        output = tensorflow_handler(model_location=model_location, persistence_type=persistence_type, payload=payload)
+    elif model_type == SCIKIT_LEARN:
+        output = scikit_learn_handler(model_location=model_location, persistence_type=persistence_type, payload=payload)
+    else:
         pass
 
     # Format result
