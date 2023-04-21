@@ -1,0 +1,5 @@
+#!/bin/bash
+
+aws s3 sync ml-cache s3://playingwithml-container-us-east-1/ml-cache --exclude deploy --profile dev
+
+aws codebuild start-build --project-name ml-cache --region us-east-1 --profile dev
