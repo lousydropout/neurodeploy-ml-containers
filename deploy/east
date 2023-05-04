@@ -1,0 +1,5 @@
+#!/bin/bash
+
+aws s3 cp --recursive container s3://neuro-container-us-east-1/container --profile prod
+
+aws codebuild start-build --project-name neuro --region us-east-1 --profile prod

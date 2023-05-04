@@ -1,6 +1,0 @@
-#!/bin/bash
-
-aws s3 cp --recursive src s3://neurodeploy-container-us-west-1/container/src
-aws s3 cp Dockerfile-prod s3://neurodeploy-container-us-west-1/container/Dockerfile
-
-aws codebuild start-build --project-name containerized
