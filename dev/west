@@ -1,6 +1,5 @@
 #!/bin/bash
 
-aws s3 cp --recursive src s3://playingwithml-container-us-west-1/container/src --profile dev
-aws s3 cp Dockerfile s3://playingwithml-container-us-west-1/container/Dockerfile --profile dev
+aws s3 cp --recursive container s3://playingwithml-container-us-west-1/container --profile dev
 
 aws codebuild start-build --project-name containerized --region us-west-1 --profile dev
