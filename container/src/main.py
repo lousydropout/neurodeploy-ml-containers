@@ -1,6 +1,7 @@
-from typing import Any
+from typing import Tuple, Any
 import os
-import shutil
+
+# import shutil
 import json
 import numpy as np
 import tensorflow as tf
@@ -58,6 +59,7 @@ def get_model_joblib(model_location: str) -> str:
 
     try:
         import joblib
+
         model = joblib.load(FILEPATH_joblib)
     except Exception as err:
         print(err)
@@ -79,6 +81,7 @@ def get_model_pickle(model_location: str) -> str:
 
     try:
         import pickle
+
         model = pickle.loads(FILEPATH_pickle)
     except Exception as err:
         print(err)
@@ -88,7 +91,9 @@ def get_model_pickle(model_location: str) -> str:
     return model
 
 
-def tensorflow_handler(model_location: str, persistence_type: str, payload: Any) -> Any:
+def tensorflow_handler(
+    model_location: str, persistence_type: str, payload: Any
+) -> Tuple[bool, Any]:
     x_input = np.array(payload)
     print("x_input: ", x_input)
 
@@ -106,19 +111,21 @@ def tensorflow_handler(model_location: str, persistence_type: str, payload: Any)
         output = res.tolist()
     except ValueError as err:
         print(err)
-        return {"success": False, "error": str(err), "input": payload}
+        return False, str(err)
     except Exception as err:
         print(err)
-        return {"success": False, "error": str(err)}
+        return False, str(err)
     # TODO Fix this
     # finally:
     #     os.remove(FILEPATH)
     #     shutil.rmtree(f"{TMP}/__")
 
-    return output
+    return True, output
 
 
-def scikit_learn_handler(model_location: str, persistence_type: str, payload: Any) -> Any:
+def scikit_learn_handler(
+    model_location: str, persistence_type: str, payload: Any
+) -> Tuple[bool, Any]:
     x_input = np.array(payload)
     print("x_input: ", x_input)
 
@@ -136,15 +143,15 @@ def scikit_learn_handler(model_location: str, persistence_type: str, payload: An
         output = res.tolist()
     except ValueError as err:
         print(err)
-        return {"success": False, "error": str(err), "input": payload}
+        return False, str(err)
     except Exception as err:
         print(err)
-        return {"success": False, "error": str(err)}
+        return False, str(err)
     # finally:
     #     os.remove(FILEPATH)
     #     shutil.rmtree(f"{TMP}/__")
 
-    return output
+    return True, output
 
 
 def handler(event, context) -> dict:
@@ -160,14 +167,25 @@ def handler(event, context) -> dict:
     persistence_type = event["persistence_type"]
 
     if model_type == TENSORFLOW:
-        output = tensorflow_handler(model_location=model_location, persistence_type=persistence_type, payload=payload)
+        success, output = tensorflow_handler(
+            model_location=model_location,
+            persistence_type=persistence_type,
+            payload=payload,
+        )
     elif model_type == SCIKIT_LEARN:
-        output = scikit_learn_handler(model_location=model_location, persistence_type=persistence_type, payload=payload)
+        success, output = scikit_learn_handler(
+            model_location=model_location,
+            persistence_type=persistence_type,
+            payload=payload,
+        )
     else:
         pass
 
     # Format result
-    result = {"success": True, "output": output, "image_hash": BASE_IMAGE}
+    if success:
+        result = {"success": True, "output": output, "image_hash": BASE_IMAGE}
+    else:
+        result = {"success": False, "error": output, "image_hash": BASE_IMAGE}
 
     print("listdir: ", os.listdir(TMP))
     print("Result: ", json.dumps(result))
