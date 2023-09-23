@@ -1,17 +1,15 @@
 # Containers
 
-There are 2 images that are built and deployed in this repo:
+There is 1 image that is built and deployed in this repo:
 
-1. ml-cache -- a custom base layer with relevant ML libraries installed
-2. containerized -- the actual image used by the execution lambda
+1. containerized -- the actual image used by the execution lambda
 
 ## Deployment overview
 
-For each image, the deployment occurs as follows.
+Steps:
 
-1. Upload the Dockerfile and relevant source files to S3
-2. Execute the relevant AWS Codebuild project -- it'll copy the files from S3
-3. (for the `containerized` image) redeploy the execution lambda so that it'll pull the latest image
+1. run `./deploy/west` or `./dev/east` and wait until code build has finished, and then
+2. (for the `containerized` image) redeploy `neurodeploy-infra` so that the execution lambda will pull the latest image
 
 ## Prerequisites
 
